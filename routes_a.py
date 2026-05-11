@@ -16,7 +16,7 @@ def read_patients(
     statement = select(Patient)
     if last_name:
         statement = statement.where(Patient.last_name.ilike(f"%{last_name}%"))
-    if has_insurance is not None:
+    if has_insurance is not None: 
         statement = statement.where(Patient.has_insurance == has_insurance)
     return session.exec(statement).all()
 
@@ -64,3 +64,12 @@ def partial_update_patient(patient_id: int, data: PatientUpdate, session: Sessio
     session.commit()
     session.refresh(patient)
     return patient
+
+# 6. DELETE - brisanje pacijenta
+@router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient(patient_id: int, session: Session = Depends(get_session)):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Pacijent nije pronađen")
+    session.delete(patient)
+    session.commit()
