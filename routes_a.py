@@ -50,3 +50,17 @@ def update_patient(patient_id: int, data: PatientCreate, session: Session = Depe
     session.commit()
     session.refresh(patient)
     return patient
+
+# 5. PATCH - djelimično ažuriranje
+@router.patch("/{patient_id}", response_model=Patient)
+def partial_update_patient(patient_id: int, data: PatientUpdate, session: Session = Depends(get_session)):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Pacijent nije pronađen")
+    patient_data = data.model_dump(exclude_unset=True)
+    for key, value in patient_data.items():
+        setattr(patient, key, value)
+    session.add(patient)
+    session.commit()
+    session.refresh(patient)
+    return patient
