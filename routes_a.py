@@ -28,3 +28,11 @@ def create_patient(data: PatientCreate, session: Session = Depends(get_session))
     session.commit()
     session.refresh(new_patient)
     return new_patient
+
+# 3. GET by ID
+@router.get("/{patient_id}", response_model=Patient)
+def read_patient(patient_id: int, session: Session = Depends(get_session)):
+    patient = session.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Pacijent nije pronađen")
+    return patient
