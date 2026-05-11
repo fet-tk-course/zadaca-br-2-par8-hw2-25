@@ -16,6 +16,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Registracija routera Studenta A (pacijenti)
+app.include_router(patients_router)
 
 @app.get("/")
 def read_root():
