@@ -115,13 +115,13 @@ curl -X DELETE "http://localhost:8000/patients/1"
 **Model:** Claude Sonnet 4.6
 
 **Primjer 1:**
-- **Prompt:** "Završila sam prvu verziju modela `Patient` i CRUD endpointa. Moj model ima polja tipa `str`, `int` i `bool`. Zadaća traži najmanje pet polja različitih tipova uključujući i `float`. Koje polje tipa `float` bi imalo smisla u kontekstu stomatološke ordinacije?"
+- **Prompt:** "Implementirala sam prvu verziju modela `Patient` i CRUD endpointa. Moj model ima polja tipa `str`, `int` i `bool`. Zadatak traži najmanje pet polja različitih tipova uključujući i `float`. Koje polje tipa `float` bi imalo smisla u kontekstu stomatološke ordinacije?"
 - **Kako je pomoglo:** AI mi je dao nekoliko prijedloga za polje tipa float, a ja sam izabrala weight_kg (težinu pacijenta) jer mi je najlogičnije vezana za stomatološku ordinaciju — doziranje lokalne anestezije računa se prema težini pacijenta. Uz to, razgovor me je naveo da preispitam i druge tipove podataka u modelu te sam samostalno odlučila poboljšati validaciju datuma.
 - **Prilagodbe:** Dodala sam polje weight_kg u sve tri šeme (`Patient`, `PatientCreate`, `PatientUpdate`) i izmijenila tip `date_of_birth` iz `str` u `date`.
 
 **Primjer 2:**
 - **Prompt:** "Implementirala sam filter po prezimenu u GET endpointu, ali primijetila sam da pretraga radi samo kad korisnik unese tačno prezime sa pravilnim velikim slovima. Kako da omogućim pretragu koja ne razlikuje velika i mala slova i koja radi i kada se unese samo dio prezimena?"
-- **Kako je pomoglo:** AI mi je objasnio razliku između SQL operatora `like` i `ilike` — `ilike` je verzija koja ignoriše veličinu slova. Pojasnio je i ulogu wildcard znaka `%` koji omogućava parcijalno podudaranje (npr. `%mit%` će uhvatiti i "Mitić" i "Smitović"). Nije mi napisao kod, samo je opisao logiku.
+- **Kako je pomoglo:** AI mi je objasnio razliku između SQL operatora `like` i `ilike` — `ilike` je verzija koja ignoriše veličinu slova. Pojasnio je i ulogu wildcard znaka `%` koji omogućava parcijalno podudaranje (npr. `%mit%` će uhvatiti i "Mitić" i "Smitović").
 - **Prilagodbe:** Na osnovu objašnjenja, zamijenila sam operator u svojoj `read_patients` funkciji i pravilno postavila wildcardove oko vrijednosti iz query parametra. Istu logiku sam zatim primijenila i na novi filter po imenu (`first_name`).
 
 ## Napomene
