@@ -9,7 +9,7 @@ Svrha aplikacije je da olakša evidenciju pacijenata (lični i medicinski podaci
 ## Tim
 
 - **Student A**: Marinela Mitić - resurs: `/patients`
-- **Student B**: [Ime Prezime] - resurs: `/resursi_b`
+- **Student B**: Iman Osmić - resurs: `/appointments`
 
 ## Instalacija i pokretanje
 
@@ -104,9 +104,74 @@ curl -X DELETE "http://localhost:8000/patients/1"
 ```
 
 
-### Resurs B: `/resursi_b`
+### Resurs B: `/appointments`
 
-[Analogno kao za Resurs A]
+| Metoda | Ruta | Opis |
+|--------|------|------|
+| GET | `/appointments/` | Lista svih termina pregleda sa query filterima |
+| GET | `/appointments/{appointment_id}` | Dohvatanje termina pregleda po ID-u |
+| POST | `/appointments/` | Kreiranje novog termina pregleda (status 201) |
+| PUT | `/appointments/{appointment_id}` | Potpuna zamjena termina pregleda |
+| PATCH | `/appointments/{appointment_id}` | Djelimično ažuriranje termina pregleda |
+| DELETE | `/appointments/{appointment_id}` | Brisanje termina pregleda (status 204) |
+
+**Query parametri za GET /appointments/:**
+
+| Parametar | Tip | Opis | Primjer |
+|-----------|-----|------|---------|
+| `patient_id` | integer | Filter po ID-u pacijenta | `?patient_id=2` |
+| `status_filter` | string | Filter po statusu termina | `?status_filter=scheduled` |
+| `is_confirmed` | boolean | Filter po potvrdi termina | `?is_confirmed=true` |
+
+Filteri se mogu kombinovati, npr. `?patient_id=2&status_filter=scheduled&is_confirmed=true`.
+
+**Primjer zahtjeva:**
+```bash
+# Kreiranje novog termina pregleda
+curl -X POST "http://localhost:8000/appointments/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 2,
+    "appointment_time": "2026-05-20T10:30:00",
+    "procedure_name": "Dental checkup",
+    "duration_minutes": 30,
+    "price": 50.0,
+    "status": "scheduled",
+    "is_confirmed": true,
+    "notes": "First appointment"
+  }'
+
+# Lista termina sa filterom po pacijentu
+curl -X GET "http://localhost:8000/appointments/?patient_id=2"
+
+# Lista termina sa filterom po statusu
+curl -X GET "http://localhost:8000/appointments/?status_filter=scheduled"
+
+# Dohvatanje termina po ID-u
+curl -X GET "http://localhost:8000/appointments/1"
+
+# Djelimično ažuriranje termina
+curl -X PATCH "http://localhost:8000/appointments/1" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "completed"}'
+
+# Potpuna zamjena termina
+curl -X PUT "http://localhost:8000/appointments/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 2,
+    "appointment_time": "2026-05-21T12:00:00",
+    "procedure_name": "Tooth cleaning",
+    "duration_minutes": 45,
+    "price": 70.0,
+    "status": "scheduled",
+    "is_confirmed": true,
+    "notes": "Updated appointment"
+  }'
+
+# Brisanje termina
+curl -X DELETE "http://localhost:8000/appointments/1"
+```
 
 ## Korištenje AI alata
 
@@ -123,6 +188,20 @@ curl -X DELETE "http://localhost:8000/patients/1"
 - **Prompt:** "Implementirala sam filter po prezimenu u GET endpointu, ali primijetila sam da pretraga radi samo kad korisnik unese tačno prezime sa pravilnim velikim slovima. Kako da omogućim pretragu koja ne razlikuje velika i mala slova i koja radi i kada se unese samo dio prezimena?"
 - **Kako je pomoglo:** AI mi je objasnio razliku između SQL operatora `like` i `ilike` — `ilike` je verzija koja ignoriše veličinu slova. Pojasnio je i ulogu wildcard znaka `%` koji omogućava parcijalno podudaranje (npr. `%mit%` će uhvatiti i "Mitić" i "Smitović").
 - **Prilagodbe:** Na osnovu objašnjenja, zamijenila sam operator u svojoj `read_patients` funkciji i pravilno postavila wildcardove oko vrijednosti iz query parametra. Istu logiku sam zatim primijenila i na novi filter po imenu (`first_name`).
+
+### Alat: ChatGPT
+
+**Model:** GPT-5.5 Thinking
+
+**Primjer 1:**
+- **Prompt:** "Radim svoj dio REST API zadaće za domenu stomatološka ordinacija. Kolegica je implementirala resurs `Patient`, a ja trebam implementirati resurs `Appointment`. Kako da napravim SQLModel model za termin pregleda koji će biti povezan sa pacijentom preko `patient_id`?"
+- **Kako je pomoglo:** AI mi je pomogao da pravilno osmislimo strukturu modela `Appointment` i da termin pregleda povežemo sa pacijentom preko stranog ključa `patient_id`. Objašnjeno mi je da `Appointment` i `Patient` ostaju dva odvojena resursa, ali da su logički povezani jer svaki termin pripada jednom pacijentu.
+- **Prilagodbe:** Kod sam prilagodila domeni stomatološke ordinacije tako što sam dodala polja `appointment_time`, `procedure_name`, `duration_minutes`, `price`, `status`, `is_confirmed` i `notes`. Također sam dodala šeme `AppointmentCreate` i `AppointmentUpdate`, pri čemu su u `AppointmentUpdate` sva polja opcionalna.
+
+**Primjer 2:**
+- **Prompt:** "Imam model `Appointment` i trebam napraviti kompletne CRUD endpoint-e u FastAPI aplikaciji: GET, POST, PUT, PATCH i DELETE. Kako da u `PATCH` endpointu ažuriram samo ona polja koja korisnik pošalje i kako da vratim 404 ako termin ne postoji?"
+- **Kako je pomoglo:** AI mi je pomogao da razumijem razliku između `PUT` i `PATCH` zahtjeva. Kod `PUT` se šalju svi podaci i radi se potpuna zamjena resursa, dok se kod `PATCH` šalju samo polja koja se mijenjaju. Objašnjeno mi je i zašto se koristi `exclude_unset=True`, jer se tako izbjegava slučajno prepisivanje polja koja korisnik nije poslao.
+- **Prilagodbe:** U `routes_b.py` sam implementirala sve CRUD rute za `/appointments`. Dodala sam provjere za nepostojeći termin i nepostojećeg pacijenta pomoću `HTTPException(status_code=404)`. Također sam dodala query filtere `patient_id`, `status_filter` i `is_confirmed`, te povezala `appointments_router` u `main.py`.
 
 ## Napomene
 
