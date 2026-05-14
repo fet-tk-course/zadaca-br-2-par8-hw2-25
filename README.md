@@ -209,3 +209,53 @@ curl -X DELETE "http://localhost:8000/appointments/1"
 - Svi endpointi koji primaju ID vraćaju **HTTP 404** ako resurs nije pronađen.
 - PATCH endpoint koristi `exclude_unset=True` kako bi se ažurirala samo polja koja je korisnik eksplicitno poslao.
 - Pretraga po imenu i prezimenu je **case-insensitive** (`ilike` operator) i podržava **parcijalno podudaranje** (npr. `last_name=mit` vraća sve pacijente čije prezime sadrži "mit").
+
+
+## Provjera zadaće 2 - student A
+
+### Z1
+
+U `PatientCreate` modelu dodana su dva Pydantic validatora:
+
+- **`first_name`** - ne smije biti prazan string. Ako korisnik pošalje prazno ime ili samo razmake, vraća se HTTP 422.
+- **`weight_kg`** - ako je polje poslano, mora biti veće od nule. Pošto je weight_kg opcionalno, u validatoru prvo provjeravam da li je vrijednost poslana (if v is not None), a tek onda provjeravam da li je veća od 0.
+
+U POST endpointu /patients/ dodana provjera duplikata po emailu. Ako pacijent sa istim emailom već postoji u bazi, vraća se HTTP 409 Conflict. Email koristim kao jedinstveno polje jer je logično da se ne mogu dva pacijenta voditi pod istom email adresom.
+
+Primjer odgovora kada se pokuša kreirati pacijent sa već postojećim emailom:
+
+```json
+{
+  "detail": "Pacijent sa emailom 'test@test.com' već postoji"
+}
+```
+
+### Z2 
+
+Dodan novi GET endpoint koji vraća ukupan broj pacijenata u bazi. Endpoint koristi SQL funkciju `func.count()`.
+
+Ruta /count je definisana prije rute /{patient_id} u kodu, jer bi inače FastAPI pokušao da protumači "count" kao vrijednost parametra patient_id i to bi izazvalo grešku.
+
+Primjer zahtjeva:
+
+```bash
+curl -X GET "http://localhost:8000/patients/count"
+```
+
+Odgovor:
+
+```json
+{
+  "ukupno": 5
+}
+```
+
+### HTTP statusi koji se mogu vratiti
+
+| Situacija | Status |
+|-----------|--------|
+| Pacijent uspješno kreiran | 201 |
+| Pacijent uspješno obrisan | 204 |
+| Pacijent sa istim emailom već postoji | 409 |
+| Pacijent nije pronađen po ID-u | 404 |
+| Validacija nije prošla (prazno ime, težina ≤ 0) | 422 |
