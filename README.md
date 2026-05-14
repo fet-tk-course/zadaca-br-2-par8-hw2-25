@@ -209,3 +209,89 @@ curl -X DELETE "http://localhost:8000/appointments/1"
 - Svi endpointi koji primaju ID vraćaju **HTTP 404** ako resurs nije pronađen.
 - PATCH endpoint koristi `exclude_unset=True` kako bi se ažurirala samo polja koja je korisnik eksplicitno poslao.
 - Pretraga po imenu i prezimenu je **case-insensitive** (`ilike` operator) i podržava **parcijalno podudaranje** (npr. `last_name=mit` vraća sve pacijente čije prezime sadrži "mit").
+
+## Dopune iz Z1 i Z2
+
+### Z1 - Povezivanje resursa
+
+U model `Appointment` dodan je strani ključ `patient_id`, koji povezuje termin pregleda sa pacijentom.
+
+```python
+patient_id: int = Field(foreign_key="patient.id")
+```
+
+Na ovaj način je resurs `/appointments` povezan sa resursom `/patients`, jer svaki termin pripada jednom pacijentu.
+
+### Z1 - Provjera duplikata u POST /appointments/
+
+U `POST /appointments/` dodana je provjera duplikata. Ako isti pacijent već ima termin u istom vremenu, endpoint vraća **HTTP 409 Conflict**.
+
+Duplikat se provjerava po:
+
+- `patient_id`
+- `appointment_time`
+
+**Primjer zahtjeva:**
+
+```bash
+curl -X POST "http://localhost:8000/appointments/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 2,
+    "appointment_time": "2026-05-20T10:30:00",
+    "procedure_name": "Dental checkup",
+    "duration_minutes": 30,
+    "price": 50.0,
+    "status": "scheduled",
+    "is_confirmed": true,
+    "notes": "First appointment"
+  }'
+```
+
+**Očekivani odgovor ako termin već postoji:**
+
+```json
+{
+  "detail": "Pacijent već ima termin u odabranom vremenu"
+}
+```
+
+Status: **409 Conflict**
+
+### Z2 - Custom GET endpoint
+
+Dodan je novi custom GET endpoint:
+
+```text
+GET /appointments/statistics
+```
+
+Endpoint vraća statistiku termina: ukupan broj termina, prosječnu cijenu i broj potvrđenih termina.
+
+**Primjer zahtjeva:**
+
+```bash
+curl -X GET "http://localhost:8000/appointments/statistics"
+```
+
+**Očekivani odgovor:**
+
+```json
+{
+  "ukupno_termina": 3,
+  "prosjek_cijene": 53.33,
+  "potvrdjeni_termini": 2
+}
+```
+
+Status: **200 OK**
+
+### Validacijska pravila
+
+Ako su dodani validatori u `AppointmentCreate`, mogu nastati sljedeće greške:
+
+- `procedure_name` ne smije biti prazan string,
+- `duration_minutes` mora biti veći od nule,
+- `price` ne smije biti negativan.
+
+Za neispravne podatke FastAPI/Pydantic vraća status **422 Unprocessable Entity**.

@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from database import get_session
 from models_a import Patient
 from models_b import Appointment, AppointmentCreate, AppointmentUpdate
-
+from sqlalchemy import func
 
 router = APIRouter(prefix="/appointments", tags=["Termini pregleda"])
 
@@ -47,6 +47,19 @@ def create_appointment(
             status_code=404,
             detail="Pacijent nije pronađen"
         )
+    # Provjerava da li isti pacijent već ima termin u istom vremenu
+    existing_appointment = session.exec(
+        select(Appointment).where(
+            Appointment.patient_id == appointment_data.patient_id,
+            Appointment.appointment_time == appointment_data.appointment_time
+        )
+    ).first()
+
+    if existing_appointment is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Pacijent već ima termin u odabranom vremenu"
+        )
 
     appointment = Appointment.model_validate(appointment_data)
 
@@ -56,6 +69,28 @@ def create_appointment(
 
     return appointment
 
+@router.get("/statistics")
+def get_appointment_statistics(
+    session: Session = Depends(get_session)
+):
+    # Vraća osnovnu statistiku za termine pregleda
+    total_appointments = session.exec(
+        select(func.count(Appointment.id))
+    ).one()
+
+    average_price = session.exec(
+        select(func.avg(Appointment.price))
+    ).one()
+
+    confirmed_appointments = session.exec(
+        select(func.count(Appointment.id)).where(Appointment.is_confirmed == True)
+    ).one()
+
+    return {
+        "ukupno_termina": total_appointments,
+        "prosjek_cijene": round(average_price or 0, 2),
+        "potvrdjeni_termini": confirmed_appointments
+    }
 
 @router.get("/{appointment_id}", response_model=Appointment)
 def read_appointment(
